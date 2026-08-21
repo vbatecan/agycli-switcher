@@ -1,0 +1,151 @@
+/* Clean & Minimalist TCSS Stylesheet for agy-profile */
+
+Screen {
+    background: $surface;
+    color: $text;
+    padding: 1 2;
+}
+
+#header-container {
+    height: 3;
+    background: $panel;
+    padding: 0 1;
+    border-bottom: solid $primary;
+    margin-bottom: 1;
+}
+
+#header-title {
+    text-style: bold;
+    color: $accent;
+    content-align: left middle;
+    height: 100%;
+}
+
+#header-status {
+    text-style: bold;
+    content-align: right middle;
+    height: 100%;
+    color: $success;
+}
+
+#main-container {
+    layout: vertical;
+    height: 1fr;
+}
+
+#list-container {
+    height: 55%;
+    background: $panel;
+    border: round $primary-darken-2;
+    padding: 1;
+    margin-bottom: 1;
+}
+
+#list-container:focus-within {
+    border: round $accent;
+}
+
+#details-container {
+    height: 45%;
+    background: $panel;
+    border: round $primary-darken-2;
+    padding: 1;
+}
+
+.pane-title {
+    text-style: bold;
+    color: $primary;
+    margin-bottom: 1;
+}
+
+/* Profile List */
+ProfileListView {
+    background: transparent;
+    border: none;
+}
+
+ProfileListItem {
+    padding: 0 1;
+    margin-bottom: 1;
+    background: $surface-darken-1;
+    border: round transparent;
+    height: 3;
+}
+
+ProfileListItem:hover {
+    background: $surface-lighten-1;
+}
+
+ProfileListItem.-selected {
+    background: $primary-darken-2;
+    border: round $accent;
+}
+
+.profile-line {
+    layout: horizontal;
+    height: 100%;
+    align: left middle;
+}
+
+/* Details Card */
+#details-card {
+    height: 100%;
+}
+
+/* Simple Modals */
+ModalScreen {
+    align: center middle;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.modal-dialog {
+    width: 60;
+    max-height: 80%;
+    background: $panel;
+    border: round $accent;
+    padding: 1 2;
+}
+
+.modal-title {
+    text-style: bold;
+    color: $accent;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+.modal-buttons {
+    layout: horizontal;
+    align: right middle;
+    height: 3;
+    margin-top: 1;
+}
+
+.modal-buttons Button {
+    margin-left: 2;
+}
+
+.field-label {
+    text-style: bold;
+    margin-top: 1;
+    color: $text;
+}
+
+Input {
+    margin-bottom: 1;
+    border: solid $primary;
+}
+
+Input:focus {
+    border: round $accent;
+}
+
+Checkbox {
+    margin: 1 0;
+}
+
+/* Footer */
+Footer {
+    background: $panel;
+    color: $text;
+    margin-top: 1;
+}
