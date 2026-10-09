@@ -600,6 +600,118 @@ def cmd_doctor(args: argparse.Namespace, store: ProfileStore, switcher: ProfileS
         return 1
 
 
+def cmd_wrap(args: argparse.Namespace, store: ProfileStore, switcher: ProfileSwitcher) -> int:
+    ensure_initialized(store)
+    from agy_multiprofile.core.wrapper import (
+        generate_shell_alias,
+        get_shim_status,
+        install_shell_alias,
+        install_shim,
+        uninstall_shell_alias,
+        uninstall_shim,
+    )
+    from agy_multiprofile.utils.console import console
+
+    action = (args.action or "status").lower()
+    mode = getattr(args, "mode", "shim") or "shim"
+    bin_dir = Path(args.bin_dir) if getattr(args, "bin_dir", None) else None
+    shell = getattr(args, "shell", "auto") or "auto"
+
+    if action in ("status", "info"):
+        console.print("[bold cyan]✦ Antigravity CLI 'agy' Replacement Status[/bold cyan]\n")
+        status = get_shim_status(bin_dir, store.root_dir)
+
+        if status["is_installed"]:
+            if status["is_valid_shim"]:
+                print_success(f"Executable shim is installed at: {status['shim_path']}")
+            else:
+                print_warning(f"File exists at '{status['shim_path']}' but is NOT an agy-profile shim.")
+        else:
+            print_info(f"No executable shim installed at: {status['shim_path']}")
+
+        if status["has_backup"]:
+            print_info(f"Original binary backup preserved at: {status['backup_path']}")
+
+        if status["saved_real_path"]:
+            print_info(f"Recorded real Antigravity binary: {status['saved_real_path']}")
+
+        if status["found_real_binary"]:
+            print_info(f"Discovered real Antigravity binary: {status['found_real_binary']}")
+        else:
+            print_warning("No underlying Antigravity CLI binary discovered.")
+
+        which_agy = status.get("which_agy")
+        if which_agy:
+            if status["is_active_shim"]:
+                print_success(f"Active 'agy' command on PATH invokes agy-profile switcher ({which_agy})")
+            else:
+                print_info(f"Active 'agy' command on PATH: {which_agy}")
+        else:
+            print_info("No 'agy' command currently on PATH.")
+
+        if not status["in_path"]:
+            print_warning(f"Shim directory '{status['shim_path'].parent}' is not in your current PATH.")
+
+        console.print(f"\n[bold]Shell Alias snippet:[/bold] [dim]{generate_shell_alias(shell)}[/dim]")
+        return 0
+
+    elif action in ("install", "setup", "enable"):
+        if getattr(args, "dry_run", False):
+            print_info(f"DRY RUN: Would install agy replacement in mode '{mode}'.")
+            return 0
+
+        success = True
+        if mode in ("shim", "all"):
+            ok, msg = install_shim(bin_dir=bin_dir, profile_home=store.root_dir, force=getattr(args, "force", False))
+            if ok:
+                print_success(msg)
+            else:
+                print_error(msg)
+                success = False
+
+        if mode in ("alias", "all"):
+            ok, msg = install_shell_alias(shell=shell)
+            if ok:
+                print_success(msg)
+            else:
+                print_error(msg)
+                success = False
+
+        return 0 if success else 1
+
+    elif action in ("uninstall", "remove", "disable", "revert", "restore", "unwrap", "reset"):
+        if getattr(args, "dry_run", False):
+            print_info(f"DRY RUN: Would revert agy replacement in mode '{mode}'.")
+            return 0
+
+        success = True
+        if mode in ("shim", "all"):
+            ok, msg = uninstall_shim(bin_dir=bin_dir, profile_home=store.root_dir)
+            if ok:
+                print_success(msg)
+            else:
+                print_error(msg)
+                success = False
+
+        if mode in ("alias", "all"):
+            ok, msg = uninstall_shell_alias(shell=shell)
+            if ok:
+                print_success(msg)
+            else:
+                print_error(msg)
+                success = False
+
+        return 0 if success else 1
+
+    elif action in ("alias", "eval"):
+        print(generate_shell_alias(shell))
+        return 0
+
+    else:
+        print_error(f"Unknown action '{action}'. Use: install, revert, uninstall, status, alias")
+        return 1
+
+
 def cmd_tui(args: argparse.Namespace, store: ProfileStore, switcher: ProfileSwitcher) -> int:
     try:
         from agy_multiprofile.tui.app import ProfileManagerApp
@@ -724,6 +836,48 @@ def build_parser() -> argparse.ArgumentParser:
     # doctor
     p_doctor = subparsers.add_parser("doctor", help="Run diagnostic health checks")
     p_doctor.set_defaults(func=cmd_doctor)
+
+    # wrap / replace-agy / shim / alias
+    p_wrap = subparsers.add_parser(
+        "wrap",
+        aliases=["replace-agy", "shim", "alias"],
+        help="Replace 'agy' command with agy-profile switcher or manage shell alias/shim",
+    )
+    p_wrap.add_argument(
+        "action",
+        nargs="?",
+        default="status",
+        choices=["install", "uninstall", "remove", "revert", "restore", "unwrap", "status", "alias", "eval"],
+        help="Action to perform (install, revert, uninstall, status, alias)",
+    )
+    p_wrap.add_argument(
+        "--mode",
+        choices=["shim", "alias", "all"],
+        default="shim",
+        help="Replacement mode: 'shim' (executable wrapper in bin dir), 'alias' (shell rc config), or 'all'",
+    )
+    p_wrap.add_argument("--bin-dir", help="Custom binary directory for executable shim (default: ~/.local/bin)")
+    p_wrap.add_argument("--shell", choices=["auto", "bash", "zsh", "fish"], default="auto", help="Target shell for alias")
+    p_wrap.add_argument("--dry-run", action="store_true", help="Preview actions without modifying disk")
+    p_wrap.add_argument("--force", action="store_true", help="Force overwrite existing binary without failing")
+    p_wrap.set_defaults(func=cmd_wrap)
+
+    # unwrap / revert-agy (shortcut)
+    p_unwrap = subparsers.add_parser(
+        "unwrap",
+        aliases=["revert-agy", "revert"],
+        help="Revert 'agy' wrapper and restore original binary and shell configuration",
+    )
+    p_unwrap.add_argument(
+        "--mode",
+        choices=["shim", "alias", "all"],
+        default="all",
+        help="Reversion mode: 'shim', 'alias', or 'all' (default: all)",
+    )
+    p_unwrap.add_argument("--bin-dir", help="Custom binary directory for executable shim (default: ~/.local/bin)")
+    p_unwrap.add_argument("--shell", choices=["auto", "bash", "zsh", "fish"], default="auto", help="Target shell for alias")
+    p_unwrap.add_argument("--dry-run", action="store_true", help="Preview actions without modifying disk")
+    p_unwrap.set_defaults(func=lambda args, store, switcher: (setattr(args, "action", "revert"), cmd_wrap(args, store, switcher))[1])
 
     return parser
 

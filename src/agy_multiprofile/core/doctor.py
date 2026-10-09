@@ -68,12 +68,24 @@ def run_doctor(profile_home: Path | None = None, gemini_home: Path | None = None
         else:
             result.add_info(f"Gemini home: {gemini} (Accessible)")
 
-    # 2. Check CLI binary on PATH
+    # 2. Check CLI binary and shim status
+    from agy_multiprofile.core.launcher import find_agy_binary, is_self_binary
     agy_bin = shutil.which("agy")
+    real_bin = find_agy_binary(vault)
     if agy_bin:
-        result.add_info(f"Antigravity CLI binary found at: {agy_bin}")
+        p_agy = Path(agy_bin).resolve()
+        if is_self_binary(p_agy):
+            if real_bin:
+                result.add_info(f"Antigravity CLI 'agy' is intercepted by agy-profile shim (Real binary: {real_bin})")
+            else:
+                result.add_warning("Antigravity CLI 'agy' is a switcher shim, but underlying real 'agy' binary could not be found.")
+        else:
+            result.add_info(f"Antigravity CLI binary found at: {agy_bin}")
     else:
-        result.add_warning("Antigravity CLI binary 'agy' was not found on PATH")
+        if real_bin:
+            result.add_info(f"Antigravity CLI binary found at: {real_bin}")
+        else:
+            result.add_warning("Antigravity CLI binary 'agy' was not found on PATH")
 
     # 3. Check gcloud CLI
     gcloud_bin = shutil.which("gcloud")
